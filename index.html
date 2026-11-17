@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de Bóveda</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#0f1115; --panel:#181b22; --panel2:#20242d; --line:#2c313c;
+  --text:#e8e9ec; --muted:#9aa0ab; --gold:#d4af37; --gold2:#f0cf5a;
+  --green:#3fb37f; --red:#e05a5a; --blue:#4c8dff; --purple:#a77bf3; --orange:#f0913a; --teal:#2fb5b5;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:linear-gradient(90deg,#14161c,#1d1a10);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{margin:0;font-size:20px;color:var(--gold2);letter-spacing:.5px}
+header .sub{color:var(--muted);font-size:13px}
+nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+nav button{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px}
+nav button.active{background:var(--gold);color:#111;border-color:var(--gold);font-weight:600}
+main{max-width:1150px;margin:0 auto;padding:20px 16px 60px}
+section.view{display:none}
+section.view.active{display:block}
+h2{margin:4px 0 16px;font-size:20px}
+h3{margin:0 0 12px;font-size:16px;color:var(--gold2)}
+.grid{display:grid;gap:14px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.kpi .lbl{color:var(--muted);font-size:13px}
+.kpi .val{font-size:26px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .note{color:var(--muted);font-size:12px;margin-top:4px}
+.kpi.main{border-color:var(--gold);background:linear-gradient(135deg,#221d0c,var(--panel))}
+.kpi.main .val{color:var(--gold2);font-size:30px}
+.c-green{color:var(--green)}.c-red{color:var(--red)}.c-blue{color:var(--blue)}.c-purple{color:var(--purple)}.c-orange{color:var(--orange)}.c-teal{color:var(--teal)}
+.two{grid-template-columns:1fr 1fr}
+@media(max-width:800px){.two{grid-template-columns:1fr}}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;font:inherit}
+textarea{min-height:56px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);border-color:transparent}
+.row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:12px}
+.field{margin-bottom:12px}
+.box{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.box .t{font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.hint{color:var(--muted);font-size:12px;margin-top:4px}
+.btn{background:var(--gold);color:#111;border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;font:inherit;font-weight:600}
+.btn.sec{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:8px;opacity:0;transition:.3s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.preview{background:var(--panel2);border-radius:10px;padding:12px;margin:12px 0;font-size:14px}
+.preview div{display:flex;justify-content:space-between;padding:2px 0}
+.chartbox{position:relative;height:340px}
+.small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>♠ Control de Bóveda</h1>
+    <div class="sub">Inventario y movimientos de bóveda · Casino</div>
+  </div>
+  <nav>
+    <button data-view="inicio" class="active">1 · Inicio</button>
+    <button data-view="registrar">2 · Registrar</button>
+    <button data-view="graficos">3 · Gráficos</button>
+    <button data-view="reportes">4 · Reportes PDF</button>
+  </nav>
+</header>
+
+<main>
+<!-- ================= INICIO ================= -->
+<section class="view active" id="v-inicio">
+  <h2>Resumen general</h2>
+  <div class="grid cards" id="kpis"></div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Últimos registros por periodo</h3>
+    <div class="tablewrap"><table id="tblUltimos"></table></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Respaldo de datos</h3>
+    <p class="small">Los datos se guardan automáticamente en este navegador. Descarga un respaldo de vez en cuando para no perderlos.</p>
+    <div class="actions">
+      <button class="btn sec" id="btnExport">Descargar respaldo (.json)</button>
+      <label class="btn sec" style="margin:0;color:var(--text)">Restaurar respaldo<input type="file" id="fileImport" accept=".json" hidden></label>
+      <button class="btn danger" id="btnReset">Borrar todo</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REGISTRAR ================= -->
+<section class="view" id="v-registrar">
+  <h2>Registrar movimientos</h2>
+
+  <div class="card" style="margin-bottom:16px;border-color:var(--gold)">
+    <h3>📷 Capturar Consolidado de Caja</h3>
+    <p class="small">Toma una foto o sube una imagen del consolidado. Se leen la fecha, billetes, caja sobrante, ticket de venta, banca inicial, ganancia e Izipay, y se llena el formulario de abajo. <b>Nada se guarda hasta que lo verifiques y pulses "Guardar registro del periodo".</b></p>
+    <div class="actions" style="margin-bottom:10px">
+      <label class="btn" style="margin:0;color:#111">📸 Tomar foto<input type="file" id="scanCam" accept="image/*" capture="environment" hidden></label>
+      <label class="btn sec" style="margin:0;color:var(--text)">🖼 Subir de galería<input type="file" id="scanGal" accept="image/*" hidden></label>
+      <button class="btn sec sm" id="btnApiCfg">⚙ Clave API</button>
+      <span class="small" id="scanStatus"></span>
+    </div>
+    <div id="apiCfg" style="display:none" class="box">
+      <label>Clave de la API de Claude (Anthropic)</label>
+      <div class="actions"><input type="password" id="apiKey" placeholder="sk-ant-..." style="flex:1;min-width:220px"><button class="btn sm" id="btnApiSave">Guardar</button></div>
+      <div class="hint">Se guarda solo en este navegador y se envía únicamente a api.anthropic.com para leer la foto. Créala en console.anthropic.com → API Keys.</div>
+    </div>
+    <div class="grid two" id="scanResult" style="display:none">
+      <div><img id="scanImg" style="width:100%;max-height:420px;object-fit:contain;border-radius:8px;background:#000"></div>
+      <div id="scanTabla"></div>
+    </div>
+  </div>
+
+  <div class="grid two">
+    <div class="card">
+      <h3>Ingreso de bóveda inicial</h3>
+      <p class="small">Monto con el que arranca (o se recarga) la bóveda. Suma al efectivo de bóveda.</p>
+      <div class="row">
+        <div><label>Fecha</label><input type="date" id="biFecha"></div>
+        <div><label>Monto (S/)</label><input type="number" step="0.01" min="0" id="biMonto" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>Detalle (opcional)</label><input id="biDetalle" placeholder="Ej: Fondo inicial de bóveda"></div>
+      <button class="btn" id="btnBoveda">Guardar bóveda inicial</button>
+    </div>
+
+    <div class="card">
+      <h3>¿Cómo se calcula?</h3>
+      <div class="small" style="line-height:1.7">
+        <b class="c-green">Efectivo en bóveda</b> = Bóveda inicial + Ganancia efectivo − Reposición a caja − Gastos − Retiros<br>
+        <b class="c-red">Pérdida</b>: es pérdida <u>de caja</u>, no resta directo a la bóveda. Se suma a las pérdidas para calcular la caja y la ganancia neta.<br>
+        <b class="c-orange">Reposición interna (a caja)</b>: lo que la bóveda le pasa a la caja (por pérdida o cuando la caja se queda sin dinero). Esto sí resta a la bóveda.<br>
+        <b class="c-teal">Reposición externa</b>: si la bóveda no alcanza, lo que falta se agrega desde fuera. No sale de la bóveda.<br>
+        <span class="small">Ej.: pérdida de caja 1,520 y en bóveda solo hay 20 → reposición a caja 20 + reposición externa 1,500.</span><br>
+        <b class="c-blue">Izipay</b>: ganancia que no entra a la bóveda (se cuenta aparte, no es pérdida).<br>
+        <b>Ganancia neta</b> = Ganancia efectivo + Izipay − Pérdidas − Gastos.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 id="periodoTitulo">Registro por periodo (recuento de caja)</h3>
+    <input type="hidden" id="editId">
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="pDesde"></div>
+      <div><label>Hasta</label><input type="date" id="pHasta"></div>
+      <div><label>Días del periodo</label><input id="pDias" readonly></div>
+    </div>
+    <div class="actions" style="margin-bottom:14px">
+      <span class="small">Periodo rápido:</span>
+      <button class="btn sec sm" data-dias="1">1 día</button>
+      <button class="btn sec sm" data-dias="2">2 días</button>
+      <button class="btn sec sm" data-dias="3">3 días</button>
+      <button class="btn sec sm" data-dias="7">7 días</button>
+      <span class="small">(termina hoy)</span>
+    </div>
+
+    <div class="grid two">
+      <div>
+        <div class="box">
+          <div class="t"><span class="dot" style="background:var(--green)"></span>Ganancia (ingreso en efectivo)</div>
+          <input type="number" step="0.01" min="0" id="fGanancia" placeholder="0.00">
+        </div>
+        <div class="box">
+          <div class="t"><span class="dot" style="background:var(--blue)"></span>Ingreso Izipay</div>
+          <input type="number" step="0.01" min="0" id="fIzipay" placeholder="0.00">
+          <div class="hint">Es ganancia, pero no entra a la bóveda.</div>
+        </div>
+        <div class="box">
+          <div class="t"><span class="dot" style="background:var(--red)"></span>Pérdida de caja y su reposición</div>
+          <div class="field"><label>Pérdida en caja (S/)</label><input type="number" step="0.01" min="0" id="fPerdida" placeholder="0.00"></div>
+          <div class="hint" id="saldoInfo" style="margin:-4px 0 10px"></div>
+          <div class="row" style="margin-bottom:0">
+            <div><label><span class="dot" style="background:var(--orange)"></span> Reposición a caja desde bóveda</label><input type="number" step="0.01" min="0" id="fRepInterna" placeholder="0.00"></div>
+            <div><label><span class="dot" style="background:var(--teal)"></span> Reposición externa (falta)</label><input type="number" step="0.01" min="0" id="fRepExterna" placeholder="0.00"></div>
+          </div>
+          <div class="field" style="margin:8px 0 0"><label>Motivo de la reposición externa</label><input id="fRepExternaDet" placeholder="Ej: en bóveda no alcanzaba para cubrir la pérdida"></div>
+          <div class="hint">Al escribir la pérdida se reparte solo: primero lo que hay en bóveda y el resto como externo. Puedes cambiar los montos. La reposición a caja también se puede registrar sin pérdida (cuando la caja se queda sin dinero).</div>
+          <div class="hint" id="coberturaInfo" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div>
+        <div class="box">
+          <div class="t"><span class="dot" style="background:var(--orange)"></span>Gastos</div>
+          <input type="number" step="0.01" min="0" id="fGasto" placeholder="0.00">
+          <div class="field" style="margin:8px 0 0"><label>Detalle del gasto</label><textarea id="fGastoDet" placeholder="Ej: Compra de útiles, limpieza, movilidad..."></textarea></div>
+        </div>
+        <div class="box">
+          <div class="t"><span class="dot" style="background:var(--purple)"></span>Retiros</div>
+          <input type="number" step="0.01" min="0" id="fRetiro" placeholder="0.00">
+          <div class="field" style="margin:8px 0 0"><label>Detalle del retiro</label><textarea id="fRetiroDet" placeholder="Ej: Retiro del dueño, depósito a banco..."></textarea></div>
+        </div>
+        <div class="field"><label>Observación general (opcional)</label><textarea id="fObs"></textarea></div>
+        <div class="preview" id="preview"></div>
+        <div class="actions">
+          <button class="btn" id="btnPeriodo">Guardar registro del periodo</button>
+          <button class="btn sec" id="btnCancelar" style="display:none">Cancelar edición</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Historial de registros</h3>
+    <div class="tablewrap"><table id="tblHistorial"></table></div>
+  </div>
+</section>
+
+<!-- ================= GRAFICOS ================= -->
+<section class="view" id="v-graficos">
+  <h2>Reportes gráficos mensuales</h2>
+  <div class="card">
+    <div class="actions" style="margin-bottom:12px">
+      <div style="width:160px"><label>Año</label><select id="gAnio"></select></div>
+    </div>
+    <h3>Movimientos por mes</h3>
+    <div class="chartbox"><canvas id="chMov"></canvas></div>
+  </div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="card"><h3>Ganancia neta por mes</h3><div class="chartbox"><canvas id="chNeta"></canvas></div></div>
+    <div class="card"><h3>Reposiciones por mes</h3><div class="chartbox"><canvas id="chRep"></canvas></div></div>
+  </div>
+</section>
+
+<!-- ================= REPORTES ================= -->
+<section class="view" id="v-reportes">
+  <h2>Reportes detallados (PDF)</h2>
+  <div class="card">
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="rDesde"></div>
+      <div><label>Hasta</label><input type="date" id="rHasta"></div>
+      <div><label>Tipo de movimiento</label>
+        <select id="rTipo">
+          <option value="">Todos</option>
+        </select></div>
+    </div>
+    <div class="actions" style="margin-bottom:14px">
+      <button class="btn" id="btnPdf">⬇ Descargar PDF</button>
+      <button class="btn sec" id="btnLimpiarFiltro">Ver todo</button>
+      <span class="small" id="rCount"></span>
+    </div>
+    <div class="grid cards" id="rKpis" style="margin-bottom:14px"></div>
+    <div class="tablewrap"><table id="tblReporte"></table></div>
+  </div>
+</section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Datos ---------------- */
+const KEY = 'controlBoveda.v1';
+const TIPOS = {
+  boveda:     {n:'Bóveda inicial',        c:'#d4af37'},
+  ganancia:   {n:'Ganancia efectivo',     c:'#3fb37f'},
+  izipay:     {n:'Izipay',                c:'#4c8dff'},
+  perdida:    {n:'Pérdida',               c:'#e05a5a'},
+  repInterna: {n:'Reposición a caja',     c:'#f0913a'},
+  repExterna: {n:'Reposición externa',    c:'#2fb5b5'},
+  gasto:      {n:'Gasto',                 c:'#f0913a'},
+  retiro:     {n:'Retiro',                c:'#a77bf3'},
+};
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+let db = load();
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && Array.isArray(d.registros)) return d; }catch(e){}
+  return {registros:[]};
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){ alert('No se pudo guardar en el navegador.'); } }
+
+/* Un registro = {id, tipo:'boveda'|'periodo', desde, hasta, creado, obs, montos:{...}, detalles:{...}} */
+const $ = s => document.querySelector(s);
+const num = v => { const n = parseFloat(v); return isFinite(n) && n > 0 ? Math.round(n*100)/100 : 0; };
+const fmt = n => 'S/ ' + (n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const hoy = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const fFecha = s => s ? s.split('-').reverse().join('/') : '';
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc = s => String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function diasEntre(a,b){ if(!a||!b) return 0; return Math.round((new Date(b)-new Date(a))/864e5)+1; }
+
+function toast(msg,color){ const t=$('#toast'); t.textContent=msg; t.style.background=color||'var(--green)'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* Lista plana de movimientos (para reportes y gráficos) */
+function movimientos(){
+  const out=[];
+  db.registros.forEach(r=>{
+    Object.keys(TIPOS).forEach(k=>{
+      const m = r.montos[k]||0;
+      if(m>0) out.push({rid:r.id, tipo:k, monto:m, desde:r.desde, hasta:r.hasta, detalle:(r.detalles&&r.detalles[k])||'', obs:r.obs||''});
+    });
+  });
+  return out.sort((a,b)=> a.hasta<b.hasta?-1:a.hasta>b.hasta?1:0);
+}
+function totales(lista){
+  const t={}; Object.keys(TIPOS).forEach(k=>t[k]=0);
+  lista.forEach(m=>t[m.tipo]+=m.monto);
+  t.efectivo = t.boveda + t.ganancia - t.repInterna - t.gasto - t.retiro;
+  t.neta = t.ganancia + t.izipay - t.perdida - t.gasto;
+  return t;
+}
+function efectoBoveda(r){
+  const m=r.montos; return (m.boveda||0)+(m.ganancia||0)-(m.repInterna||0)-(m.gasto||0)-(m.retiro||0);
+}
+/* Saldo de bóveda sin contar un registro (el que se está editando) */
+function saldoBoveda(excluirId){ return db.registros.filter(r=>r.id!==excluirId).reduce((s,r)=>s+efectoBoveda(r),0); }
+
+/* ---------------- Navegación ---------------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-'+b.dataset.view));
+  render();
+});
+
+/* ---------------- Inicio ---------------- */
+function kpi(lbl,val,cls,note){ return `<div class="card kpi ${cls||''}"><div class="lbl">${lbl}</div><div class="val">${fmt(val)}</div>${note?`<div class="note">${note}</div>`:''}</div>`; }
+function renderInicio(){
+  const t=totales(movimientos());
+  $('#kpis').innerHTML =
+    kpi('Monto total (Efectivo + Izipay)', t.efectivo+t.izipay, 'main', 'Efectivo en bóveda + Izipay acumulado') +
+    kpi('Efectivo en bóveda', t.efectivo, '', 'Saldo actual de la bóveda').replace('class="val"','class="val c-green"') +
+    kpi('Total Izipay', t.izipay, '', 'Ganancia que no entra a bóveda').replace('class="val"','class="val c-blue"') +
+    kpi('Gastos totales', t.gasto, '').replace('class="val"','class="val c-orange"') +
+    kpi('Retiros totales', t.retiro, '').replace('class="val"','class="val c-purple"') +
+    kpi('Reposiciones internas (a caja)', t.repInterna, '', 'Salieron de la bóveda').replace('class="val"','class="val c-orange"') +
+    kpi('Reposiciones externas', t.repExterna, '', 'Agregadas desde fuera a caja').replace('class="val"','class="val c-teal"') +
+    kpi('Pérdidas totales de caja', t.perdida, '', 'Cubiertas con reposición interna + externa').replace('class="val"','class="val c-red"') +
+    kpi('Ganancia efectivo total', t.ganancia, '').replace('class="val"','class="val c-green"') +
+    kpi('Ganancia neta', t.neta, '', 'Efectivo + Izipay − pérdidas − gastos') +
+    kpi('Bóveda inicial ingresada', t.boveda, '').replace('class="val"','class="val" style="color:var(--gold2)"');
+  const ult=[...db.registros].sort((a,b)=>b.hasta.localeCompare(a.hasta)||b.creado-a.creado).slice(0,6);
+  $('#tblUltimos').innerHTML = ult.length ? `<thead><tr><th>Periodo</th><th>Tipo</th><th class="num">Ganancia</th><th class="num">Izipay</th><th class="num">Pérdida</th><th class="num">Gastos</th><th class="num">Retiros</th><th class="num">Efecto bóveda</th></tr></thead><tbody>`+
+    ult.map(r=>{const m=r.montos,e=efectoBoveda(r);return `<tr><td>${periodoTxt(r)}</td><td>${r.tipo==='boveda'?'Bóveda inicial':'Recuento'}</td><td class="num">${fmt(m.ganancia)}</td><td class="num">${fmt(m.izipay)}</td><td class="num">${fmt(m.perdida)}</td><td class="num">${fmt(m.gasto)}</td><td class="num">${fmt(m.retiro)}</td><td class="num ${e>=0?'c-green':'c-red'}">${fmt(e)}</td></tr>`}).join('')+'</tbody>'
+    : '<tr><td class="empty">Aún no hay registros. Ve a "Registrar" para empezar.</td></tr>';
+}
+function periodoTxt(r){ return r.desde===r.hasta ? fFecha(r.hasta) : `${fFecha(r.desde)} – ${fFecha(r.hasta)} <span class="small">(${diasEntre(r.desde,r.hasta)} días)</span>`; }
+
+/* ---------------- Registrar ---------------- */
+$('#biFecha').value=hoy();
+function setPeriodo(d){ const h=new Date(hoy()); const s=new Date(h); s.setDate(h.getDate()-(d-1)); $('#pDesde').value=s.toISOString().slice(0,10); $('#pHasta').value=hoy(); updDias(); }
+function updDias(){ const d=diasEntre($('#pDesde').value,$('#pHasta').value); $('#pDias').value = d>0 ? d+' día(s)' : '—'; }
+document.querySelectorAll('[data-dias]').forEach(b=>b.onclick=()=>setPeriodo(+b.dataset.dias));
+$('#pDesde').onchange=$('#pHasta').onchange=updDias;
+setPeriodo(1);
+
+$('#btnBoveda').onclick=()=>{
+  const m=num($('#biMonto').value), f=$('#biFecha').value;
+  if(!f) return toast('Indica la fecha','var(--red)');
+  if(!m) return toast('Ingresa un monto mayor a 0','var(--red)');
+  db.registros.push({id:uid(),tipo:'boveda',desde:f,hasta:f,creado:Date.now(),obs:'',montos:{boveda:m},detalles:{boveda:$('#biDetalle').value.trim()}});
+  save(); $('#biMonto').value=''; $('#biDetalle').value=''; toast('Bóveda inicial guardada'); render();
+};
+
+const CAMPOS={ganancia:'#fGanancia',izipay:'#fIzipay',perdida:'#fPerdida',repInterna:'#fRepInterna',repExterna:'#fRepExterna',gasto:'#fGasto',retiro:'#fRetiro'};
+const DETS={repExterna:'#fRepExternaDet',gasto:'#fGastoDet',retiro:'#fRetiroDet'};
+function leerForm(){ const m={}; for(const k in CAMPOS) m[k]=num($(CAMPOS[k]).value); return m; }
+function saldoDisponible(){ return Math.max(0, Math.round(saldoBoveda($('#editId').value)*100)/100); }
+function updPreview(){
+  const m=leerForm(); const e=m.ganancia-m.repInterna-m.gasto-m.retiro;
+  const disp=saldoDisponible();
+  $('#saldoInfo').innerHTML=`Disponible en bóveda para reponer: <b class="c-green">${fmt(disp)}</b>`;
+  const cub=m.repInterna+m.repExterna, dif=Math.round((m.perdida-cub)*100)/100;
+  let ci='';
+  if(m.perdida>0){
+    ci = dif===0 ? `<span class="c-green">✔ Pérdida cubierta: ${fmt(m.repInterna)} bóveda + ${fmt(m.repExterna)} externo = ${fmt(m.perdida)}</span>`
+       : dif>0 ? `<span class="c-orange">⚠ Faltan ${fmt(dif)} por reponer a caja</span>`
+       : `<span class="c-orange">ⓘ Se repone ${fmt(-dif)} más que la pérdida</span>`;
+  }
+  if(m.repInterna>disp) ci+=`<br><span class="c-red">⚠ La reposición desde bóveda (${fmt(m.repInterna)}) supera lo disponible (${fmt(disp)})</span>`;
+  $('#coberturaInfo').innerHTML=ci;
+  $('#preview').innerHTML=`<div><span>Efecto en bóveda</span><b class="${e>=0?'c-green':'c-red'}">${fmt(e)}</b></div><div><span>Saldo de bóveda después</span><b>${fmt(saldoBoveda($('#editId').value)+e)}</b></div><div><span>Pérdida de caja (no resta directo a bóveda)</span><b class="c-red">${fmt(m.perdida)}</b></div><div><span>Izipay (fuera de bóveda)</span><b class="c-blue">${fmt(m.izipay)}</b></div><div><span>Ganancia neta del periodo</span><b>${fmt(m.ganancia+m.izipay-m.perdida-m.gasto)}</b></div>`;
+}
+document.querySelectorAll('#v-registrar input[type=number]').forEach(i=>i.addEventListener('input',updPreview));
+/* Reparto automático de la pérdida: primero bóveda, el resto externo */
+$('#fPerdida').addEventListener('input',()=>{
+  const p=num($('#fPerdida').value), disp=saldoDisponible();
+  const interna=Math.min(p,disp), externa=Math.round((p-interna)*100)/100;
+  $('#fRepInterna').value=interna||''; $('#fRepExterna').value=externa||'';
+  updPreview();
+});
+updPreview();
+
+function limpiarForm(){
+  for(const k in CAMPOS) $(CAMPOS[k]).value=''; for(const k in DETS) $(DETS[k]).value=''; $('#fObs').value='';
+  $('#editId').value=''; $('#btnPeriodo').textContent='Guardar registro del periodo'; $('#btnCancelar').style.display='none';
+  $('#periodoTitulo').textContent='Registro por periodo (recuento de caja)'; setPeriodo(1); updPreview();
+}
+$('#btnCancelar').onclick=limpiarForm;
+
+$('#btnPeriodo').onclick=()=>{
+  const desde=$('#pDesde').value, hasta=$('#pHasta').value;
+  if(!desde||!hasta) return toast('Indica el periodo (desde / hasta)','var(--red)');
+  if(desde>hasta) return toast('"Desde" no puede ser mayor que "Hasta"','var(--red)');
+  const m=leerForm();
+  if(!Object.values(m).some(v=>v>0)) return toast('Ingresa al menos un monto','var(--red)');
+  if(m.gasto>0 && !$('#fGastoDet').value.trim()) return toast('Describe el detalle del gasto','var(--red)');
+  if(m.retiro>0 && !$('#fRetiroDet').value.trim()) return toast('Describe el detalle del retiro','var(--red)');
+  const cub=Math.round((m.repInterna+m.repExterna-m.perdida)*100)/100;
+  if(m.perdida>0 && cub<0 && !confirm(`La pérdida (${fmt(m.perdida)}) no está cubierta completamente: faltan ${fmt(-cub)}. ¿Guardar de todos modos?`)) return;
+  if(m.repInterna>saldoDisponible() && !confirm('La reposición desde bóveda supera el saldo disponible y la bóveda quedará en negativo. ¿Guardar de todos modos?')) return;
+  const det={}; for(const k in DETS) det[k]=$(DETS[k]).value.trim();
+  const id=$('#editId').value;
+  if(id){
+    const r=db.registros.find(x=>x.id===id); Object.assign(r,{desde,hasta,montos:m,detalles:det,obs:$('#fObs').value.trim()});
+    toast('Registro actualizado');
+  } else {
+    db.registros.push({id:uid(),tipo:'periodo',desde,hasta,creado:Date.now(),obs:$('#fObs').value.trim(),montos:m,detalles:det});
+    toast('Registro del periodo guardado');
+  }
+  save(); limpiarForm(); render();
+};
+
+function editar(id){
+  const r=db.registros.find(x=>x.id===id); if(!r) return;
+  if(r.tipo==='boveda'){
+    const v=prompt('Nuevo monto de bóveda inicial (S/):', r.montos.boveda); if(v===null) return;
+    const n=num(v); if(!n) return toast('Monto inválido','var(--red)');
+    r.montos.boveda=n; save(); render(); return toast('Actualizado');
+  }
+  $('#editId').value=id; $('#pDesde').value=r.desde; $('#pHasta').value=r.hasta; updDias();
+  for(const k in CAMPOS) $(CAMPOS[k]).value=r.montos[k]||''; for(const k in DETS) $(DETS[k]).value=(r.detalles||{})[k]||'';
+  $('#fObs').value=r.obs||''; $('#btnPeriodo').textContent='Guardar cambios'; $('#btnCancelar').style.display='';
+  $('#periodoTitulo').textContent='Editando registro del '+fFecha(r.desde)+' al '+fFecha(r.hasta);
+  updPreview(); $('#periodoTitulo').scrollIntoView({behavior:'smooth'});
+}
+function borrar(id){
+  if(!confirm('¿Eliminar este registro? No se puede deshacer.')) return;
+  db.registros=db.registros.filter(x=>x.id!==id); save(); render(); toast('Registro eliminado','var(--red)');
+}
+
+function renderHistorial(){
+  const rs=[...db.registros].sort((a,b)=>b.hasta.localeCompare(a.hasta)||b.creado-a.creado);
+  if(!rs.length){ $('#tblHistorial').innerHTML='<tr><td class="empty">Sin registros todavía.</td></tr>'; return; }
+  $('#tblHistorial').innerHTML='<thead><tr><th>Periodo</th><th>Movimientos</th><th>Detalles</th><th class="num">Efecto bóveda</th><th></th></tr></thead><tbody>'+
+  rs.map(r=>{
+    const movs=Object.keys(TIPOS).filter(k=>r.montos[k]>0).map(k=>`<span class="tag" style="background:${TIPOS[k].c}22;color:${TIPOS[k].c}">${TIPOS[k].n}: ${fmt(r.montos[k])}</span>`).join(' ');
+    const dets=Object.entries(r.detalles||{}).filter(([k,v])=>v).map(([k,v])=>`<div><b>${TIPOS[k].n}:</b> ${esc(v)}</div>`).join('')+(r.obs?`<div><b>Obs:</b> ${esc(r.obs)}</div>`:'');
+    const e=efectoBoveda(r);
+    return `<tr><td>${periodoTxt(r)}</td><td style="max-width:360px">${movs}</td><td class="small" style="max-width:260px">${dets||'—'}</td><td class="num ${e>=0?'c-green':'c-red'}">${fmt(e)}</td>
+    <td style="white-space:nowrap"><button class="btn sec sm" onclick="editar('${r.id}')">Editar</button> <button class="btn danger sm" onclick="borrar('${r.id}')">✕</button></td></tr>`;
+  }).join('')+'</tbody>';
+}
+
+/* ---------------- Escáner del Consolidado de Caja ---------------- */
+const API_KEY_STORE='controlBoveda.apiKey';
+function getKey(){ try{ return localStorage.getItem(API_KEY_STORE)||''; }catch(e){ return ''; } }
+$('#btnApiCfg').onclick=()=>{ const b=$('#apiCfg'); b.style.display=b.style.display==='none'?'':'none'; $('#apiKey').value=getKey(); };
+$('#btnApiSave').onclick=()=>{ try{ localStorage.setItem(API_KEY_STORE,$('#apiKey').value.trim()); }catch(e){} $('#apiCfg').style.display='none'; toast('Clave guardada'); };
+
+const SCAN_SCHEMA={type:'object',additionalProperties:false,
+  required:['dia_desde','dia_hasta','mes','anio','billetes','caja_sobrante','ticket_venta','banca_inicial','ganancia_hoja','signo_ganancia','izipay','gastos_total','gastos','notas'],
+  properties:{
+    dia_desde:{type:'integer',description:'Primer día del periodo (ej. 14 en "14/15")'},
+    dia_hasta:{type:'integer',description:'Último día del periodo (ej. 15 en "14/15"); igual a dia_desde si es un solo día'},
+    mes:{type:'integer'}, anio:{type:'integer',description:'Año tal como aparece (ej. 26)'},
+    billetes:{type:'number',description:'Casilla BILLETES (abajo a la derecha)'},
+    caja_sobrante:{type:'number',description:'Casilla CAJA SOBRANTE'},
+    ticket_venta:{type:'number',description:'Casilla TICKET DE VENTA'},
+    banca_inicial:{type:'number',description:'Casilla Banca inicial (izquierda)'},
+    ganancia_hoja:{type:'number',description:'Valor absoluto escrito en la casilla GANANCIA'},
+    signo_ganancia:{type:'string',enum:['+','-','sin signo'],description:'Signo escrito junto a la GANANCIA'},
+    izipay:{type:'number',description:'Monto escrito como Izipay/Izipay (0 si no aparece)'},
+    gastos_total:{type:'number',description:'Casilla Gastos del cuadro derecho'},
+    gastos:{type:'array',items:{type:'object',additionalProperties:false,required:['detalle','monto'],properties:{detalle:{type:'string'},monto:{type:'number'}}}},
+    notas:{type:'string',description:'Dudas de lectura (números poco legibles), vacío si no hay'}
+  }};
+
+function imagenABase64(file){
+  return new Promise((res,rej)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{ const max=1800, s=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      const d=c.toDataURL('image/jpeg',0.9); res({dataUrl:d,b64:d.split(',')[1]}); };
+    img.onerror=()=>rej(new Error('No se pudo abrir la imagen'));
+    img.src=url;
+  });
+}
+
+async function leerConsolidado(b64){
+  const key=getKey(); if(!key) throw new Error('Falta la clave API (botón ⚙ Clave API)');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true','anthropic-beta':'server-side-fallback-2026-07-01'},
+    body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,fallbacks:'default',
+      output_config:{effort:'high',format:{type:'json_schema',schema:SCAN_SCHEMA}},
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+        {type:'text',text:'Esta es la foto de un "Consolidado de Caja" de un casino, llenado a mano. Lee con cuidado los números escritos a mano. La fecha está arriba a la izquierda con el formato días/mes/año, donde los días pueden ser un periodo (ej. "14/15 / 11 / 26" = días 14 al 15, mes 11, año 26). Extrae las casillas de la derecha: CAJA SOBRANTE, BILLETES, TICKET DE VENTA y GANANCIA (con su signo + o −), la Banca inicial del lado izquierdo, la casilla Gastos y la lista de "Detalles de gastos", y el monto de Izipay escrito a mano. Usa punto decimal. Si una casilla está vacía pon 0 y menciónalo en notas.'}
+      ]}]})});
+  const data=await r.json();
+  if(!r.ok) throw new Error((data.error&&data.error.message)||('Error HTTP '+r.status));
+  if(data.stop_reason==='refusal') throw new Error('La solicitud fue rechazada por el modelo');
+  if(data.stop_reason==='max_tokens') throw new Error('Respuesta incompleta, intenta de nuevo');
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  return JSON.parse(txt);
+}
+
+function fechaISO(a,m,d){ return `${a}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function aplicarConsolidado(x){
+  const anio=x.anio<100?2000+x.anio:x.anio;
+  let mD=x.mes, aD=anio; if(x.dia_desde>x.dia_hasta){ mD=x.mes-1; if(mD<1){mD=12;aD--;} } // periodo que cruza de mes
+  const desde=fechaISO(aD,mD,x.dia_desde), hasta=fechaISO(anio,x.mes,x.dia_hasta);
+  const r2=n=>Math.round(n*100)/100;
+  const ganCalc=r2(x.billetes+x.caja_sobrante+x.ticket_venta-x.banca_inicial);
+  const ganHoja=x.signo_ganancia==='-'?-x.ganancia_hoja:x.ganancia_hoja;
+  const coincide=Math.abs(ganCalc-ganHoja)<0.05;
+
+  limpiarForm();
+  $('#pDesde').value=desde; $('#pHasta').value=hasta; updDias();
+  if(ganCalc>=0){ $('#fGanancia').value=ganCalc||''; }
+  else { $('#fPerdida').value=-ganCalc; $('#fPerdida').dispatchEvent(new Event('input')); }
+  $('#fIzipay').value=x.izipay||'';
+  const det=(x.gastos||[]).map(g=>`${g.detalle} ${fmt(g.monto)}`).join(', ');
+  $('#fObs').value=`Consolidado ${fFecha(desde)}${desde!==hasta?' al '+fFecha(hasta):''}. Gastos de caja ${fmt(x.gastos_total)}${det?': '+det:''}.`+(x.notas?' Nota: '+x.notas:'');
+  updPreview();
+
+  const fila=(l,v,c)=>`<tr><td>${l}</td><td class="num ${c||''}">${v}</td></tr>`;
+  const sumaG=r2((x.gastos||[]).reduce((s,g)=>s+g.monto,0));
+  $('#scanTabla').innerHTML=`<table>
+    ${fila('Fecha (periodo)',fFecha(desde)+(desde!==hasta?' – '+fFecha(hasta):''))}
+    ${fila('Billetes',fmt(x.billetes))}
+    ${fila('+ Caja sobrante',fmt(x.caja_sobrante))}
+    ${fila('+ Ticket de venta',fmt(x.ticket_venta))}
+    ${fila('− Banca inicial',fmt(x.banca_inicial))}
+    ${fila('<b>= Ganancia calculada</b>','<b>'+fmt(ganCalc)+'</b>',ganCalc>=0?'c-green':'c-red')}
+    ${fila('Ganancia en la hoja ('+x.signo_ganancia+')',fmt(ganHoja))}
+    ${fila('Verificación',coincide?'✔ Coincide':'⚠ No coincide, revisa',coincide?'c-green':'c-red')}
+    ${fila('Izipay',fmt(x.izipay),'c-blue')}
+    ${fila('Gastos de caja (hoja)',fmt(x.gastos_total)+(Math.abs(sumaG-x.gastos_total)>=0.05&&sumaG?` <span class="c-orange">(detalle suma ${fmt(sumaG)})</span>`:''))}
+  </table>
+  <p class="small">${ganCalc>=0?'Ganancia positiva → se colocó en <b>Ganancia (ingreso en efectivo)</b>.':'Ganancia negativa → se colocó como <b>Pérdida de caja</b> y se repartió la reposición (bóveda / externa).'}
+  Los gastos de la hoja ya están descontados en la caja, por eso se anotan en la observación y no como gasto de bóveda.</p>
+  ${x.notas?`<p class="small c-orange">Nota de lectura: ${esc(x.notas)}</p>`:''}
+  <p class="small"><b>Revisa los datos en el formulario y pulsa "Guardar registro del periodo".</b></p>`;
+  $('#scanResult').style.display='';
+}
+
+async function procesarFoto(file){
+  if(!file) return;
+  if(!getKey()){ $('#apiCfg').style.display=''; return toast('Primero ingresa la clave API','var(--red)'); }
+  const st=$('#scanStatus');
+  try{
+    st.textContent='Preparando imagen...';
+    const {dataUrl,b64}=await imagenABase64(file);
+    $('#scanImg').src=dataUrl; $('#scanResult').style.display=''; $('#scanTabla').innerHTML='<p class="empty">Leyendo el consolidado... (puede tardar unos segundos)</p>';
+    st.textContent='Leyendo...';
+    const x=await leerConsolidado(b64);
+    aplicarConsolidado(x); st.textContent='✔ Datos cargados en el formulario'; toast('Consolidado leído, revisa y guarda');
+  }catch(e){ st.textContent=''; $('#scanTabla').innerHTML=`<p class="c-red">No se pudo leer: ${esc(e.message)}</p>`; toast('Error al leer la foto','var(--red)'); }
+}
+['#scanCam','#scanGal'].forEach(s=>$(s).onchange=e=>{ procesarFoto(e.target.files[0]); e.target.value=''; });
+
+/* ---------------- Gráficos ---------------- */
+const charts={};
+function anios(){ const s=new Set(movimientos().map(m=>m.hasta.slice(0,4))); s.add(hoy().slice(0,4)); return [...s].sort().reverse(); }
+function porMes(anio){
+  const res=Array.from({length:12},()=>{const t={};Object.keys(TIPOS).forEach(k=>t[k]=0);return t;});
+  movimientos().forEach(m=>{ if(m.hasta.slice(0,4)===anio) res[+m.hasta.slice(5,7)-1][m.tipo]+=m.monto; });
+  return res;
+}
+function barChart(id,datasets){
+  if(typeof Chart==='undefined'){ document.getElementById(id).parentElement.innerHTML='<p class="empty">No se pudieron cargar los gráficos (requiere internet la primera vez).</p>'; return; }
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:MESES,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#c9ccd3'}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
+      scales:{x:{ticks:{color:'#9aa0ab'},grid:{color:'#2c313c55'}},y:{ticks:{color:'#9aa0ab',callback:v=>'S/ '+v.toLocaleString('es-PE')},grid:{color:'#2c313c'}}}}});
+}
+function renderGraficos(){
+  const sel=$('#gAnio'), cur=sel.value; sel.innerHTML=anios().map(a=>`<option>${a}</option>`).join(''); if(cur&&[...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  const d=porMes(sel.value);
+  const ds=(k,label,color)=>({label:label||TIPOS[k].n,data:d.map(x=>x[k]),backgroundColor:color||TIPOS[k].c,borderRadius:4});
+  barChart('chMov',[ds('ganancia'),ds('izipay'),ds('perdida'),ds('gasto','Gastos','#f0913a'),ds('retiro','Retiros')]);
+  barChart('chNeta',[{label:'Ganancia neta',data:d.map(x=>x.ganancia+x.izipay-x.perdida-x.gasto),backgroundColor:d.map(x=>(x.ganancia+x.izipay-x.perdida-x.gasto)>=0?'#3fb37f':'#e05a5a'),borderRadius:4}]);
+  barChart('chRep',[ds('repInterna','Reposición interna (a caja)','#f0913a'),ds('repExterna','Reposición externa','#2fb5b5')]);
+}
+$('#gAnio').onchange=renderGraficos;
+
+/* ---------------- Reportes ---------------- */
+$('#rTipo').innerHTML+=Object.entries(TIPOS).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+function filtrados(){
+  const d=$('#rDesde').value,h=$('#rHasta').value,t=$('#rTipo').value;
+  return movimientos().filter(m=>(!d||m.hasta>=d)&&(!h||m.desde<=h)&&(!t||m.tipo===t));
+}
+function renderReportes(){
+  const l=filtrados(), t=totales(l);
+  $('#rCount').textContent=l.length+' movimiento(s)';
+  $('#rKpis').innerHTML=kpi('Ganancia efectivo',t.ganancia)+kpi('Izipay',t.izipay)+kpi('Pérdidas',t.perdida)+kpi('Gastos',t.gasto)+kpi('Retiros',t.retiro)+kpi('Repos. interna / externa',t.repInterna+t.repExterna,'',`${fmt(t.repInterna)} / ${fmt(t.repExterna)}`);
+  $('#tblReporte').innerHTML = l.length ? '<thead><tr><th>Periodo</th><th>Tipo</th><th>Detalle</th><th class="num">Monto</th></tr></thead><tbody>'+
+    [...l].reverse().map(m=>`<tr><td>${m.desde===m.hasta?fFecha(m.hasta):fFecha(m.desde)+' – '+fFecha(m.hasta)}</td><td><span class="tag" style="background:${TIPOS[m.tipo].c}22;color:${TIPOS[m.tipo].c}">${TIPOS[m.tipo].n}</span></td><td class="small">${esc(m.detalle||m.obs)||'—'}</td><td class="num">${fmt(m.monto)}</td></tr>`).join('')+'</tbody>'
+    : '<tr><td class="empty">No hay movimientos en este filtro.</td></tr>';
+}
+['#rDesde','#rHasta','#rTipo'].forEach(s=>$(s).onchange=renderReportes);
+$('#btnLimpiarFiltro').onclick=()=>{ $('#rDesde').value='';$('#rHasta').value='';$('#rTipo').value=''; renderReportes(); };
+
+$('#btnPdf').onclick=()=>{
+  if(!window.jspdf) return toast('No se cargó la librería PDF (requiere internet)','var(--red)');
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'});
+  const l=filtrados(), t=totales(l), tg=totales(movimientos());
+  const pdfm=n=>'S/ '+(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const d=$('#rDesde').value,h=$('#rHasta').value,tp=$('#rTipo').value;
+  doc.setFillColor(20,22,28); doc.rect(0,0,595,70,'F');
+  doc.setTextColor(212,175,55); doc.setFontSize(18); doc.text('Reporte de Control de Bóveda',40,32);
+  doc.setTextColor(200); doc.setFontSize(10);
+  doc.text(`Periodo: ${d?fFecha(d):'inicio'} al ${h?fFecha(h):'hoy'}   ·   Tipo: ${tp?TIPOS[tp].n:'Todos'}   ·   Generado: ${new Date().toLocaleString('es-PE')}`,40,52);
+  doc.setTextColor(0);
+  doc.autoTable({startY:88,head:[['Resumen del filtro','Monto']],theme:'grid',headStyles:{fillColor:[212,175,55],textColor:20},
+    columnStyles:{1:{halign:'right'}},margin:{left:40,right:40},
+    body:[['Bóveda inicial',pdfm(t.boveda)],['Ganancia efectivo',pdfm(t.ganancia)],['Izipay',pdfm(t.izipay)],['Pérdidas',pdfm(t.perdida)],
+      ['Reposición interna (a caja)',pdfm(t.repInterna)],['Reposición externa',pdfm(t.repExterna)],['Gastos',pdfm(t.gasto)],['Retiros',pdfm(t.retiro)],
+      ['Ganancia neta (efectivo + Izipay − pérdidas − gastos)',pdfm(t.neta)],
+      [{content:'Saldo actual en bóveda (todos los registros)',styles:{fontStyle:'bold'}},{content:pdfm(tg.efectivo),styles:{fontStyle:'bold'}}],
+      [{content:'Monto total actual (efectivo + Izipay)',styles:{fontStyle:'bold'}},{content:pdfm(tg.efectivo+tg.izipay),styles:{fontStyle:'bold'}}]]});
+  doc.autoTable({startY:doc.lastAutoTable.finalY+20,head:[['Periodo','Tipo','Detalle','Monto']],theme:'striped',
+    headStyles:{fillColor:[32,36,45]},columnStyles:{3:{halign:'right',cellWidth:85},0:{cellWidth:110},1:{cellWidth:110}},margin:{left:40,right:40},styles:{fontSize:9},
+    body:l.map(m=>[m.desde===m.hasta?fFecha(m.hasta):fFecha(m.desde)+' – '+fFecha(m.hasta),TIPOS[m.tipo].n,m.detalle||m.obs||'-',pdfm(m.monto)]),
+    didDrawPage:()=>{ doc.setFontSize(8); doc.setTextColor(150); doc.text('Página '+doc.internal.getNumberOfPages(),555,820,{align:'right'}); }});
+  doc.save(`reporte-boveda-${hoy()}.pdf`);
+  toast('PDF descargado');
+};
+
+/* ---------------- Respaldo ---------------- */
+$('#btnExport').onclick=()=>{
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));
+  a.download=`respaldo-boveda-${hoy()}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+$('#fileImport').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const d=JSON.parse(rd.result); if(!Array.isArray(d.registros)) throw 0;
+      if(!confirm(`Se reemplazarán los datos actuales por ${d.registros.length} registro(s). ¿Continuar?`)) return;
+      db=d; save(); render(); toast('Respaldo restaurado'); }catch(_){ toast('Archivo de respaldo inválido','var(--red)'); } e.target.value=''; };
+  rd.readAsText(f);
+};
+$('#btnReset').onclick=()=>{ if(confirm('¿Borrar TODOS los registros? Descarga un respaldo antes. Esta acción no se puede deshacer.')){ db={registros:[]}; save(); render(); toast('Datos borrados','var(--red)'); } };
+
+/* ---------------- Render ---------------- */
+function render(){
+  renderInicio(); renderHistorial(); renderReportes();
+  if($('#v-graficos').classList.contains('active')) renderGraficos();
+}
+render();
+
+/* PWA: funciona sin internet una vez instalada (solo cuando se sirve por https) */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>

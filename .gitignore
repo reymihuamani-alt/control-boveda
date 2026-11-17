@@ -1,0 +1,5 @@
+# Respaldos y reportes generados (pueden contener datos reales)
+respaldo-boveda-*.json
+reporte-boveda-*.pdf
+Thumbs.db
+desktop.ini
